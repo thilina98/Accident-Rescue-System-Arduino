@@ -1,18 +1,23 @@
 #include <SoftwareSerial.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
 // Choose two Arduino pins to use for software serial
-int RXPin = 2;
-int TXPin = 3;
+#define GpsRXPin 2
+#define GpsTXPin 3
 
-//Default baud of NEO-6M is 9600
-int GPSBaud = 9600;
-int count;
+// Variables
+int count=0;
 String serialData;
 bool accident_detected = false;
 String formatted_str;
 
+// Accelerometer
+Adafruit_MPU6050 gy_521;
+
 // Create a software serial port called "gpsSerial"
-SoftwareSerial gpsSerial(RXPin, TXPin);
+SoftwareSerial gpsSerial(GpsRXPin, GpsTXPin);
 
 String createMessageFromGpgga(String serialData, bool accident_detected);
 
@@ -23,8 +28,19 @@ void setup()
   // Start the Arduino hardware serial port at 9600 baud
   Serial.begin(9600);
 
-  // Start the software serial port at the GPS's default baud
-  gpsSerial.begin(GPSBaud);
+  // Start the software serial port at the GPS's and bluethooth module's default baud
+  gpsSerial.begin(9600);
+  Serial.begin(9600);
+
+  gy_521.begin();
+//  if (gy_521.begin())
+//  {
+////      Serial.print("Accelerometer found\n");
+//  }
+//  else
+//  {
+////      Serial.print("Error\n");
+//  }
 }
 
 
@@ -33,29 +49,37 @@ void setup()
 void loop()
 {
   count++;
-  // Displays information when new sentence is available.
-  if(gpsSerial.available() > 0){
-      serialData = gpsSerial.readStringUntil('\n');
-      
-      if(serialData.substring(1,6) == "GPGGA"){
-//        Serial.println("Thilina");
-        formatted_str = createMessageFromGpgga(serialData, true);
-      } 
-//      
-//      Serial.println("==============");
-//      Serial.println(serialData);
-//      Serial.println(formatted_str);
-//      Serial.println("==============");
-      
-  }
-  else{
-    Serial.print("Not detected\n");
+
+  // Accelerometer code
+  sensors_event_t a, g, temp;
+  gy_521.getEvent(&a, &g, &temp);
+
+  float acc_x = a.acceleration.x;
+  float acc_y = a.acceleration.y;
+//  float acc_z = a.acceleration.z;
+
+  // Identifying an accident
+  if (acc_x > 5 || acc_y > 5){
+    accident_detected = true;  
   }
 
-  if(count == 70 || accident_detected == 1){
-    Serial.print(formatted_str);
+  
+  // GPS Module code
+  if(gpsSerial.available() > 0){
+      serialData = gpsSerial.readStringUntil('\n');
+//      Serial.println(serialData);
+      
+      if(serialData.substring(1,6) == "GPGGA"){
+        formatted_str = createMessageFromGpgga(serialData, accident_detected);
+      } 
+  }
+  
+  if(count == 70 || accident_detected){
+    Serial.println(formatted_str);
     if (count == 70) {
       count = 0;
+    }else if(accident_detected){
+      accident_detected = false;  
     }
   }
   delay(100);
