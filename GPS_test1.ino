@@ -20,6 +20,7 @@ Adafruit_MPU6050 gy_521;
 SoftwareSerial gpsSerial(GpsRXPin, GpsTXPin);
 
 String createMessageFromGpgga(String serialData, bool accident_detected);
+String createMessageFromGprmc(String serialData, bool accident_detected);
 
 //==================================================================
 
@@ -69,34 +70,36 @@ void loop()
       serialData = gpsSerial.readStringUntil('\n');
 //      Serial.println(serialData);
       
-      if(serialData.substring(1,6) == "GPGGA"){
-        formatted_str = createMessageFromGpgga(serialData, accident_detected);
+      if(serialData.substring(1,6) == "GPRMC"){
+        formatted_str = createMessageFromGprmc(serialData, accident_detected);
       } 
   }
   
-  if(count == 70 || accident_detected){
-    Serial.println(formatted_str);
-    if (count == 70) {
+  if(count == 50 || accident_detected){
+    if (count == 50) {
+      Serial.println("0"+formatted_str);
       count = 0;
     }else if(accident_detected){
+      Serial.println("1"+formatted_str);
       accident_detected = false;  
     }
   }
-  delay(100);
+  
+  delay(150);
 }
 
 
 //==================================================================
 
 
-//$GPGGA,103839.00,0647.80528,N,07954.02007,E,1,07,1.21,19.2,M,-95,10,24,269,,11,02,100,*76
+// $GPGGA,103839.00,0647.80528,N,07954.02007,E,1,07,1.21,19.2,M,-95,10,24,269,,11,02,100,*76
+// $GPRMC,180351.00,A,0647.67833,N,07954.18281,E,0.066,,160622,,,A
 String createMessageFromGpgga(String serialData, bool accident_detected){
-  String formatted_str=","+serialData.substring(7,13)+","+serialData.substring(17,27)+","+serialData.substring(30,41);
-  if (accident_detected){
-    return "1"+formatted_str;
-  }else{
-    return "0"+formatted_str;
-  }
+  return ","+serialData.substring(7,13)+","+serialData.substring(17,27)+","+serialData.substring(30,41);
+}
+
+String createMessageFromGprmc(String serialData, bool accident_detected){
+  return ","+serialData.substring(7,13)+","+serialData.substring(19,29)+","+serialData.substring(32,43);
 }
 
 
